@@ -1,0 +1,5 @@
+/build/
+/dist/
+/irc_bot.egg-info/
+/venv/
+*.pyc
