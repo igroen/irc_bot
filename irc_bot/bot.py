@@ -5,7 +5,6 @@ import re
 import signal
 import ssl
 import sys
-import threading
 
 __all__ = ["Bot", "command", "log", "periodic", "regex", "require_admin"]
 
@@ -86,6 +85,8 @@ class Bot:
             )
 
     def _setup(self):
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+
         self._context = ssl.create_default_context()
 
         try:
@@ -94,16 +95,6 @@ class Bot:
             log.exception(e)
             self._context.check_hostname = False
             self._context.verify_mode = ssl.CERT_NONE
-
-        self._loop = asyncio.get_event_loop()
-        self._loop_thread = threading.Thread(target=self._loop.run_forever)
-        self._loop_thread.start()
-        asyncio.get_child_watcher().attach_loop(self._loop)
-
-        self._run_coroutine = functools.partial(
-            asyncio.run_coroutine_threadsafe,
-            loop=self._loop,
-        )
 
     async def _connect(self):
         self._reader, self._writer = await asyncio.open_connection(
@@ -118,7 +109,7 @@ class Bot:
         if self.password:
             await self._identify()
 
-        self._run_coroutine(self._join_channels())
+        asyncio.create_task(self._join_channels())
 
     async def _reconnect(self):
         self._writer.close()
@@ -173,28 +164,29 @@ class Bot:
 
             await self._process_line(line)
 
-    async def _irc_bot(self):
+    async def _start_irc_bot(self):
         await self._connect()
 
         while True:
             text = await self._recv()
             await self._process_text(text)
 
-    async def _gather_periodic_tasks(self):
+    async def _start_periodic_tasks(self):
         periodic_tasks = [
             getattr(self, periodic_task)()
             for periodic_task in self._periodic_tasks
         ]
         await asyncio.gather(*periodic_tasks)
 
-    def run(self):
-        self._run_coroutine(self._irc_bot())
-        self._run_coroutine(self._gather_periodic_tasks())
+    async def _run(self):
+        await asyncio.gather(
+            self._start_irc_bot(),
+            self._start_periodic_tasks(),
+        )
 
-        try:
-            signal.pause()
-        except KeyboardInterrupt:
-            print("Interrupted")
+    def run(self):
+        self._setup()
+        asyncio.run(self._run())
 
     async def _say(self, message, channel):
         if message:
@@ -210,7 +202,8 @@ class Bot:
                 await self._say(message, channel)
 
     async def run_in_executor(self, func, *args):
-        return await self._loop.run_in_executor(None, func, *args)
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, func, *args)
 
     async def _register(self):
         self._writer.write(
@@ -247,14 +240,6 @@ class Bot:
             if bot.__name__ != Bot.__name__
         )
 
-    def __enter__(self):
-        self._setup()
-        return self
-
-    def __exit__(self, *args):
-        self._loop.call_soon_threadsafe(self._loop.stop)
-        self._loop_thread.join()
-
     @classmethod
     def create(cls):
         return type(cls.__name__, tuple(cls._subclasses), {})
@@ -267,7 +252,7 @@ def command(command):
         @functools.wraps(func)
         async def _wrapper(bot, trigger):
             if command == trigger.message:
-                bot._run_coroutine(func(bot, trigger))
+                asyncio.create_task(func(bot, trigger))
 
         return _wrapper
 
@@ -284,7 +269,7 @@ def regex(regex):
 
             if match:
                 trigger.group = match.group
-                bot._run_coroutine(func(bot, trigger))
+                asyncio.create_task(func(bot, trigger))
 
         return _wrapper
 
