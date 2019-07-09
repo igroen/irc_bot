@@ -33,7 +33,7 @@ class Bot:
     _subclasses = set()
 
     def __init__(self, hostname, nick, channels,
-                 password=None, cert=None, port=6697, admins=None):
+                 password=None, cert=None, port=6697, admins=()):
         self.hostname = hostname
         self.nick = nick
         self.channels = channels
@@ -41,9 +41,6 @@ class Bot:
         self.cert = cert
         self.port = port
         self.admins = admins
-
-        if self.admins is None:
-            self.admins = ()
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -201,7 +198,8 @@ class Bot:
             for channel in self.channels:
                 await self._say(message, channel)
 
-    async def run_in_executor(self, func, *args):
+    @staticmethod
+    async def run_in_executor(func, *args):
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, func, *args)
 
@@ -227,10 +225,12 @@ class Bot:
     async def _join(self, channel):
         self._writer.write(f"JOIN {channel}\r\n".encode())
 
-    def _get_nick(self, text):
+    @staticmethod
+    def _get_nick(text):
         return text.partition("!")[0].lstrip(":")
 
-    def _get_message(self, text):
+    @staticmethod
+    def _get_message(text):
         return text.partition("PRIVMSG")[2].partition(":")[2]
 
     @property
