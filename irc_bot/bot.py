@@ -118,6 +118,13 @@ class Bot:
             log.error(f"Error received from {self.hostname}. Reconnecting...")
             await self._reconnect()
 
+    async def _handle_empty_response(self, text):
+        if not text:
+            log.error("No text received. Shutting down bot...")
+            self._writer.close()
+            await self._writer.wait_closed()
+            sys.exit(1)
+
     async def _reply_to_ping(self, text):
         if text.startswith("PING"):
             self._writer.write(f"PONG :{self.hostname}\r\n".encode())
@@ -157,6 +164,7 @@ class Bot:
 
             await self._reply_to_ping(line)
             await self._handle_error_response(line)
+            await self._handle_empty_response(line)
             await self._rejoin_when_kicked(line)
 
             await self._process_line(line)
