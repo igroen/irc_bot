@@ -225,10 +225,6 @@ class Bot:
             self._start_socket_server(SOCKET_SERVER_HOST, SOCKET_SERVER_PORT),
         )
 
-    def run(self):
-        self._setup()
-        asyncio.run(self._run())
-
     async def _say(self, message, channel):
         if message:
             self._writer.write(
@@ -276,6 +272,10 @@ class Bot:
     @staticmethod
     def _get_message(text):
         return text.partition("PRIVMSG")[2].partition(":")[2]
+
+    def __call__(self):
+        self._setup()
+        asyncio.run(self._run())
 
     @property
     def _bots(self):
