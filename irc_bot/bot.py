@@ -15,6 +15,9 @@ log = logging.getLogger(__name__)
 
 MAX_RECV_BYTES = 8192
 
+SOCKET_SERVER_HOST = "127.0.0.1"
+SOCKET_SERVER_PORT = 9999
+
 
 class Trigger:
     __slots__ = "channel", "nick", "message", "group"
@@ -183,10 +186,43 @@ class Bot:
         ]
         await asyncio.gather(*periodic_tasks)
 
+    async def _socket_server(self, reader, writer):
+        host, port = writer._transport._sock.getpeername()
+
+        log.debug("New connection from %s:%d", host, port)
+
+        while True:
+            writer.write(">>> ".encode())
+            data = await reader.read(100)
+            text = data.decode().strip()
+
+            if not text:
+                break
+
+            channel, _, message = text.partition(" ")
+            if channel in self.channels:
+                await self.say(message, channel)
+                writer.write(f"'{message}'\n".encode())
+            else:
+                await self.say(text)
+                writer.write(f"'{text}'\n".encode())
+
+            await writer.drain()
+
+        writer.close()
+        await writer.wait_closed()
+        log.debug("Connection with %s:%d closed", host, port)
+
+    async def _start_socket_server(self, host, port):
+        server = await asyncio.start_server(self._socket_server, host, port)
+        log.debug(f"Starting socket server on: {host}:{port}")
+        await server.serve_forever()
+
     async def _run(self):
         await asyncio.gather(
             self._start_irc_bot(),
             self._start_periodic_tasks(),
+            self._start_socket_server(SOCKET_SERVER_HOST, SOCKET_SERVER_PORT),
         )
 
     def run(self):
