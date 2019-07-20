@@ -57,7 +57,7 @@ class Bot:
                 continue
 
             if attr in cls._attrs:
-                log.error(f"Attribute '{attr}' already exists")
+                log.error("Attribute '%s' already exists", attr)
                 sys.exit(1)
 
             cls._attrs.append(attr)
@@ -74,14 +74,16 @@ class Bot:
 
         if _bot_actions:
             log.info(
-                f"{cls.__name__} actions: "
-                f"[{', '.join(_bot_actions)}]"
+                "%s actions: [%s]",
+                cls.__name__,
+                ", ".join(_bot_actions)
             )
 
         if _bot_periodic_tasks:
             log.info(
-                f"{cls.__name__} periodic tasks: "
-                f"[{', '.join(_bot_periodic_tasks)}]"
+                "%s periodic tasks: [%s]",
+                cls.__name__,
+                ", ".join(_bot_periodic_tasks)
             )
 
     def _setup(self):
@@ -118,7 +120,10 @@ class Bot:
 
     async def _handle_error_response(self, text):
         if text.startswith("ERROR"):
-            log.error(f"Error received from {self.hostname}. Reconnecting...")
+            log.error(
+                "Error received from %s. Reconnecting...",
+                self.hostname
+            )
             await self._reconnect()
 
     async def _handle_empty_response(self, text):
@@ -189,7 +194,7 @@ class Bot:
     async def _socket_server(self, reader, writer):
         host, port = writer._transport._sock.getpeername()
 
-        log.debug("New connection from %s:%d", host, port)
+        log.info("New connection from %s:%d", host, port)
 
         while True:
             writer.write(">>> ".encode())
@@ -211,11 +216,11 @@ class Bot:
 
         writer.close()
         await writer.wait_closed()
-        log.debug("Connection with %s:%d closed", host, port)
+        log.info("Connection with %s:%d closed", host, port)
 
     async def _start_socket_server(self, host, port):
         server = await asyncio.start_server(self._socket_server, host, port)
-        log.debug(f"Starting socket server on: {host}:{port}")
+        log.info("Starting socket server on: %s:%d", host, port)
         await server.serve_forever()
 
     async def _run(self):
