@@ -209,8 +209,7 @@ class Bot:
                 await self.say(message, channel)
                 writer.write(f"'{message}'\n".encode())
             else:
-                await self.say(text)
-                writer.write(f"'{text}'\n".encode())
+                writer.write(f"'Unknown channel: {channel}'\n".encode())
 
             await writer.drain()
 
