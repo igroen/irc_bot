@@ -195,6 +195,10 @@ class Bot:
         host, port = writer._transport._sock.getpeername()
 
         log.info("New connection from %s:%d", host, port)
+        writer.write(
+            "Please enter your message starting "
+            "with the channel name.\n".encode()
+        )
 
         while True:
             writer.write(">>> ".encode())
