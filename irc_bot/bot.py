@@ -191,6 +191,14 @@ class Bot:
         ]
         await asyncio.gather(*periodic_tasks)
 
+    async def _process_socket_server_text(self, text, writer):
+        channel, _, message = text.partition(" ")
+        if channel in self.channels:
+            await self.say(message, channel)
+            writer.write(f"'{message}'\n".encode())
+        else:
+            writer.write(f"'Unknown channel: {channel}'\n".encode())
+
     async def _socket_server(self, reader, writer):
         host, port = writer._transport._sock.getpeername()
 
@@ -208,12 +216,7 @@ class Bot:
             if not text:
                 break
 
-            channel, _, message = text.partition(" ")
-            if channel in self.channels:
-                await self.say(message, channel)
-                writer.write(f"'{message}'\n".encode())
-            else:
-                writer.write(f"'Unknown channel: {channel}'\n".encode())
+            await self._process_socket_server_text(text, writer)
 
             await writer.drain()
 
