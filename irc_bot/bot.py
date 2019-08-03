@@ -144,7 +144,7 @@ class Bot:
 
     async def _recv(self):
         text = await self._reader.read(MAX_RECV_BYTES)
-        text = text.decode().strip()
+        text = text.decode(errors="ignore").strip()
 
         return text
 
