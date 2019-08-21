@@ -1,7 +1,7 @@
 import asyncio
 
 
-async def check_output_lines(command):
+async def execute_command(command):
     process = await asyncio.create_subprocess_shell(
         command,
         stdout=asyncio.subprocess.PIPE,
@@ -12,8 +12,8 @@ async def check_output_lines(command):
     return stdout.decode().split("\n")
 
 
-async def execute_command(bot, command, channel=None):
-    result = await check_output_lines(command)
+async def say_execute_command(bot, command, channel=None):
+    result = await execute_command(command)
 
     for line in result:
         if channel:
