@@ -14,6 +14,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 MAX_RECV_BYTES = 8192
+TIMEOUT = 600
 
 SOCKET_SERVER_HOST = "127.0.0.1"
 SOCKET_SERVER_PORT = 9999
@@ -113,10 +114,17 @@ class Bot:
 
         asyncio.create_task(self._join_channels())
 
-    async def _reconnect(self):
+    async def _close_writer(self):
         self._writer.close()
         await self._writer.wait_closed()
+
+    async def _reconnect(self):
+        await self._close_writer()
         await self._connect()
+
+    async def _shutdown(self):
+        await self._close_writer()
+        sys.exit(1)
 
     async def _handle_error_response(self, text):
         if text.startswith("ERROR"):
@@ -129,9 +137,7 @@ class Bot:
     async def _handle_empty_response(self, text):
         if not text:
             log.error("No text received. Shutting down bot...")
-            self._writer.close()
-            await self._writer.wait_closed()
-            sys.exit(1)
+            await self._shutdown()
 
     async def _reply_to_ping(self, text):
         if text.startswith("PING"):
@@ -144,9 +150,8 @@ class Bot:
 
     async def _recv(self):
         text = await self._reader.read(MAX_RECV_BYTES)
-        text = text.decode(errors="ignore").strip()
 
-        return text
+        return text.decode(errors="ignore").strip()
 
     async def _process_message(self, trigger):
         for action in self._actions:
@@ -181,8 +186,20 @@ class Bot:
         await self._connect()
 
         while True:
-            text = await self._recv()
-            await self._process_text(text)
+            try:
+                text = await asyncio.wait_for(
+                    self._recv(),
+                    timeout=float(TIMEOUT),
+                )
+            except asyncio.TimeoutError:
+                log.error(
+                    "No data received for %d seconds. "
+                    "Shutting down bot...",
+                    TIMEOUT,
+                )
+                await self._shutdown()
+            else:
+                await self._process_text(text)
 
     async def _start_periodic_tasks(self):
         periodic_tasks = [
