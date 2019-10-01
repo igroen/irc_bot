@@ -6,7 +6,14 @@ import signal
 import ssl
 import sys
 
-__all__ = ["Bot", "command", "log", "periodic", "regex", "require_admin"]
+__all__ = (
+    "Bot",
+    "command",
+    "log",
+    "periodic",
+    "regex",
+    "require_admin",
+)
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
