@@ -53,6 +53,20 @@ class Bot:
         self.port = port
         self.admins = admins
 
+        self._setup()
+
+    def _setup(self):
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+        self._context = ssl.create_default_context()
+
+        try:
+            self._context.load_verify_locations(self.cert)
+        except Exception as e:
+            log.exception(e)
+            self._context.check_hostname = False
+            self._context.verify_mode = ssl.CERT_NONE
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
@@ -93,18 +107,6 @@ class Bot:
                 cls.__name__,
                 ", ".join(_bot_periodic_tasks)
             )
-
-    def _setup(self):
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-        self._context = ssl.create_default_context()
-
-        try:
-            self._context.load_verify_locations(self.cert)
-        except Exception as e:
-            log.exception(e)
-            self._context.check_hostname = False
-            self._context.verify_mode = ssl.CERT_NONE
 
     async def _connect(self):
         self._reader, self._writer = await asyncio.open_connection(
@@ -273,11 +275,6 @@ class Bot:
             for channel in self.channels:
                 await self._say(message, channel)
 
-    @staticmethod
-    async def run_in_executor(func, *args):
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, func, *args)
-
     async def _register(self):
         self._writer.write(
             f"USER {self.nick} 8 * :{self.nick}\r\n".encode()
@@ -308,10 +305,6 @@ class Bot:
     def _get_message(text):
         return text.partition("PRIVMSG")[2].partition(":")[2]
 
-    def __call__(self):
-        self._setup()
-        asyncio.run(self._run())
-
     @property
     def _bots(self):
         return sorted(
@@ -319,9 +312,17 @@ class Bot:
             if bot.__name__ != Bot.__name__
         )
 
+    @staticmethod
+    async def run_in_executor(func, *args):
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, func, *args)
+
     @classmethod
-    def create(cls):
+    def init(cls):
         return type(cls.__name__, tuple(cls._subclasses), {})
+
+    def run(self):
+        asyncio.run(self._run())
 
 
 def command(command):
