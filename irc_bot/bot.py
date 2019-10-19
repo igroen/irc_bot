@@ -55,6 +55,9 @@ class Bot:
 
         self._setup()
 
+    def __new__(cls, *args, **kwargs):
+        return super().__new__(type(cls.__name__, tuple(cls._subclasses), {}))
+
     def _setup(self):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
 
@@ -316,10 +319,6 @@ class Bot:
     async def run_in_executor(func, *args):
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, func, *args)
-
-    @classmethod
-    def init(cls):
-        return type(cls.__name__, tuple(cls._subclasses), {})
 
     def run(self):
         asyncio.run(self._run())
