@@ -77,8 +77,8 @@ class Bot:
 
         _bot_actions = []
         _bot_periodic_tasks = []
-        for attr, value in cls.__dict__.items():
-            if attr in ["__annotations__", "__doc__", "__module__"]:
+        for attr, value in vars(cls).items():
+            if attr in ["__doc__", "__module__"]:
                 continue
 
             if attr in cls._attrs:
