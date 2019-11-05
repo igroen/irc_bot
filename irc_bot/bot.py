@@ -176,7 +176,7 @@ class Bot:
         if not message.startswith(f"{self.nick}:"):
             return
 
-        message = message.lstrip(f"{self.nick}:").strip()
+        message = message.partition(":")[2].strip()
 
         for channel in self.channels:
             if f"PRIVMSG {channel}" in text:
